@@ -2,7 +2,7 @@
 
 **A Raspberry Pi 5 that talks straight to Colorlight LED receiver cards over Ethernet. No sending card, no HDMI, no X server.**
 
-This is the software behind the 5ft 9in Pokémon Yellow edition of the *World's Largest Game Boy Color*, a giant, fully playable Game Boy Color built by Nick Alvarez and Paige Powell at Inventopia in Davis, California.
+This is the software behind our 5ft 9in Pokémon Yellow edition giant Game Boy Color, the Raspberry Pi-powered sibling of the green 9ft 7in *World's Largest Game Boy Color*. Both are fully playable and were built by Nick Alvarez and Paige Powell at Inventopia in Davis, California.
 
 ```
 emulator core ──► colorlight_libretro (Pi 5) ──raw Ethernet──► Colorlight 5A-75B / E80 ──HUB75──► 3×3 LED panels
@@ -24,7 +24,7 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 - Works with any libretro core that outputs XRGB8888, RGB565 or 0RGB1555. We run Gambatte with its network link built in, and mGBA works too.
 - Battery saves (`.srm`) written every 5 seconds and on power-off, using an atomic write that survives the plug being pulled
 - Core options from a `.opt` file or the command line, which is how the Pi joins the link cable for Pokémon trading between the two Game Boys
-- A matching **Raspberry Pi Pico** controller: an 11-button USB gamepad, a bistable power switch, an absolute volume knob and a power LED
+- A matching **Raspberry Pi Pico / Pico 2** controller: an 11-button USB gamepad, a bistable power switch, an absolute volume knob and a power LED, with a full wiring diagram
 
 ## Repository layout
 
@@ -37,9 +37,11 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 | `driver/install.sh` | Builds and installs everything on the Pi |
 | `driver/gambatte/` | Build script, connect-timeout patch and core options for the link-cable Gambatte core |
 | `controller/firmware/` | Pico firmware (C, Pico SDK + TinyUSB) |
-| `controller/usb_gamepad.uf2` | Prebuilt firmware: drag onto the Pico in BOOTSEL mode |
+| `controller/usb_gamepad_pico.uf2` | Prebuilt firmware for the original Pico (RP2040) |
+| `controller/usb_gamepad_pico2.uf2` | Prebuilt firmware for the Pico 2 / Pico 2 W (RP2350) |
 | `controller/volume_daemon.py` | Turns the volume knob into the Pi's system volume (PipeWire) |
 | `docs/colorlight-protocol.md` | Notes on the receiver card packet format |
+| `docs/gamepad-wiring-diagram.pdf` | Wiring diagram for the Pico gamepad |
 
 ## Hardware
 
@@ -61,10 +63,10 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 | 9× 64×64 P3 HUB75 panels, 1/32 scan | 3×3 grid = 192×192 pixels, 576 mm square |
 | 5 V supply | Ours is 60 A; nine panels typically draw 18–27 A |
 | Ethernet cable | Pi 5 straight to the receiver card's input port, no switch |
-| Raspberry Pi Pico | The controller |
+| Raspberry Pi Pico, Pico 2 or Pico 2 W | The controller (the wiring diagram shows a Pico 2 W) |
 | 10 momentary buttons + 1 latching switch | We use long-arm limit switches behind custom giant buttons |
-| 47 kΩ potentiometer + 47 kΩ resistor | Volume knob (the pot with a pull-up to 3V3) |
-| Red LED, 150 Ω, 2N2222, 1 kΩ | Power indicator |
+| 47 kΩ potentiometer + 47 kΩ resistor | Volume knob |
+| Red through-hole LED, 150 Ω and 1 kΩ resistors, 2N2222 NPN transistor | Power indicator |
 | Audio output and speaker | Anything PipeWire can see |
 
 ### Receiver card setup (one time)
@@ -73,6 +75,10 @@ Configure the panels on the receiver card once with Colorlight's LEDVision/LEDSe
 
 ### Controller wiring (Pico)
 
+[![Giant Game Boy HID gamepad wiring diagram](docs/images/gamepad-wiring-diagram.png)](docs/gamepad-wiring-diagram.pdf)
+
+*Click for the full PDF ([docs/gamepad-wiring-diagram.pdf](docs/gamepad-wiring-diagram.pdf)). The diagram is the reference for building the controller.*
+
 | GPIO | Function | GPIO | Function |
 |---|---|---|---|
 | GP0 | Power switch (latching) | GP6 | B |
@@ -80,10 +86,12 @@ Configure the panels on the receiver card once with Colorlight's LEDVision/LEDSe
 | GP2 | Select | GP8 | A |
 | GP3 | D-pad down | GP9 | D-pad up |
 | GP4 | D-pad right | GP10 | Right bumper |
-| GP5 | Start | GP15 | Power LED (to 2N2222 base via 1 kΩ) |
-| GP27 / ADC1 | Pot wiper | 3V3 / AGND | Pot ends (47 kΩ pull-up to 3V3) |
+| GP5 | Start | GP15 | Power LED driver (1 kΩ to the 2N2222 base) |
+| GP27 / ADC1 | Volume pot wiper | | |
 
-All buttons connect the GPIO to GND (internal pull-ups, active low).
+- **Buttons:** each button connects its GPIO to GND. The Pico's internal pull-ups are used, so no resistors are needed.
+- **Volume knob:** a 47 kΩ pot with its ends on AGND and, through a 47 kΩ resistor, 3V3. The wiper goes to ADC1 (GP27). That gives about 0–1.65 V, which the firmware maps to the full volume range.
+- **Power LED:** a red through-hole LED and 150 Ω resistor from +5 V (VBUS) to the collector of a 2N2222. The emitter goes to GND and the base goes to GP15 through 1 kΩ. The LED follows the power switch.
 
 ## Install
 
@@ -96,7 +104,7 @@ cd pi5-colorlight-gameboy/driver
 mkdir -p ~/roms/gbc        # put your own .gb / .gbc files here
 ```
 
-Flash the controller: hold BOOTSEL on the Pico, plug it in, and copy `controller/usb_gamepad.uf2` onto the `RPI-RP2` drive. To build it yourself, see `controller/firmware/` (standard Pico SDK CMake build).
+Flash the controller: hold BOOTSEL on the Pico, plug it in, and copy the matching file onto the drive that appears: `controller/usb_gamepad_pico.uf2` for an original Pico (`RPI-RP2` drive), or `controller/usb_gamepad_pico2.uf2` for a Pico 2 / Pico 2 W (`RP2350` drive). To build it yourself, see `controller/firmware/` (standard Pico SDK CMake build with `-DPICO_BOARD=pico` or `-DPICO_BOARD=pico2`).
 
 Volume knob service (runs as your user):
 
@@ -161,7 +169,7 @@ Setup checklist:
 - Brightness: if the receiver card has brightness saved in flash, it may ignore `-b`. Use `--dim` instead.
 - If the link partner stops in the middle of a trade, the emulator can freeze, because Gambatte still uses a blocking read. Restart both Game Boys.
 - Bring your own legally owned ROMs or homebrew. No games or BIOS files are included.
-- The 9ft 7in World's Largest Game Boy Color uses a Windows mini PC and a Colorlight X2S sending card instead. It uses the same Pico controller.
+- The green 9ft 7in World's Largest Game Boy Color uses a Windows mini PC and a Colorlight X2S sending card instead. It uses the same Pico controller.
 
 ## Credits
 
