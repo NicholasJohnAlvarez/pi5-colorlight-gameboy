@@ -1,0 +1,15 @@
+[Unit]
+Description=Giant Game Boy power switch daemon
+After=network.target sound.target
+
+[Service]
+# Change User and paths to match your install
+User=gameboy
+WorkingDirectory=/home/gameboy/pi5-colorlight-gameboy/driver
+ExecStart=/usr/bin/python3 /home/gameboy/pi5-colorlight-gameboy/driver/power_switch.py
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

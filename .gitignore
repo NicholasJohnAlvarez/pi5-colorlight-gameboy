@@ -1,0 +1,27 @@
+# Build outputs
+driver/colorlight_libretro
+controller/firmware/build/
+*.o
+*.elf
+*.bin
+*.hex
+*.dis
+*.map
+
+# Games, BIOS and saves: never commit these
+*.gb
+*.gbc
+*.gba
+*.srm
+*.sav
+*.state*
+*bios*
+
+# Runtime state
+.game_index
+.game_lock
+
+# Editors / OS
+.vscode/
+.DS_Store
+__pycache__/

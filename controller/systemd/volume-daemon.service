@@ -1,0 +1,15 @@
+# Install as a *user* service:
+#   mkdir -p ~/.config/systemd/user
+#   cp volume-daemon.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now volume-daemon
+[Unit]
+Description=Giant Game Boy volume knob (Pico Rz axis -> PipeWire)
+After=pipewire.service
+
+[Service]
+ExecStart=/usr/bin/python3 %h/pi5-colorlight-gameboy/controller/volume_daemon.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
