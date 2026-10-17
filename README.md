@@ -43,6 +43,17 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 
 ## Hardware
 
+<table>
+<tr>
+<td width="50%"><img src="docs/images/raspberry-pi-5.jpg" alt="Raspberry Pi 5 in its case with Ethernet and USB cables plugged in"></td>
+<td width="50%"><img src="docs/images/pico-controller-board.jpg" alt="Raspberry Pi Pico on a perma-proto board with labelled screw terminals"></td>
+</tr>
+<tr>
+<td><b>The whole console.</b> The Raspberry Pi 5 that runs the 5ft 9in Game Boy. The white Ethernet cable goes straight to the Colorlight receiver card behind the LED panels, with no sending card in between. USB connects the Pico controller.</td>
+<td><b>The button brain.</b> The Raspberry Pi Pico on a solder-down proto board, with screw terminals for each button (DN, UP…), the volume pot (POT) and the power switch (ON). Twisted-pair cable runs out to the giant buttons in the shell.</td>
+</tr>
+</table>
+
 | Part | Notes |
 |---|---|
 | Raspberry Pi 5 | Raspberry Pi OS 64-bit (Bookworm or newer) |
