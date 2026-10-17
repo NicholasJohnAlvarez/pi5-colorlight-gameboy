@@ -155,6 +155,7 @@ static char   g_save_dir[512]   = "";
 #define MAX_OPTS 32
 static char  *g_opt_keys[MAX_OPTS], *g_opt_vals[MAX_OPTS];
 static int    g_opt_count = 0;
+static int    g_log_vars  = 0;          /* --log-vars: print every option the core asks for */
 
 /* ========================================================================
  * Runtime state
@@ -501,9 +502,11 @@ static bool cb_environment(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_VARIABLE: {
             struct retro_variable *v = data;
             v->value = NULL;
-            for (int i = 0; i < g_opt_count; i++)
-                if (v->key && !strcmp(v->key, g_opt_keys[i])) { v->value = g_opt_vals[i]; return true; }
-            return false;
+            for (int i = g_opt_count - 1; i >= 0; i--)     /* later --opt wins */
+                if (v->key && !strcmp(v->key, g_opt_keys[i])) { v->value = g_opt_vals[i]; break; }
+            if (g_log_vars)
+                fprintf(stderr, "  [core asks] %s -> %s\n", v->key ? v->key : "?", v->value ? v->value : "(default)");
+            return v->value != NULL;
         }
         case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
             *(bool *)data = false;
@@ -607,6 +610,24 @@ static double now_s(void) {
     return t.tv_sec + t.tv_nsec / 1e9;
 }
 
+/* Load core options from a RetroArch-style .opt file:  key = "value"  */
+static void load_opts_file(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (!f) { fprintf(stderr, "  Warning: cannot open options file %s\n", path); return; }
+    char line[512];
+    while (fgets(line, sizeof(line), f) && g_opt_count < MAX_OPTS) {
+        char key[256], val[256];
+        if (line[0] == '#' || line[0] == ';') continue;
+        if (sscanf(line, " %255[^= \t] = \"%255[^\"]\"", key, val) == 2 ||
+            sscanf(line, " %255[^= \t] = %255s", key, val) == 2) {
+            g_opt_keys[g_opt_count] = strdup(key);
+            g_opt_vals[g_opt_count++] = strdup(val);
+        }
+    }
+    fclose(f);
+    fprintf(stderr, "  Options: %d loaded from %s\n", g_opt_count, path);
+}
+
 /* ========================================================================
  * main
  * ======================================================================== */
@@ -630,6 +651,8 @@ static void usage(const char *p) {
         "      --cpu N            pin to CPU core, -1 to disable (3)\n"
         "      --system-dir PATH  BIOS directory (default: ROM folder)\n"
         "      --opt KEY=VALUE    core option, repeatable\n"
+        "      --opts-file PATH   load core options from a .opt file\n"
+        "      --log-vars         print every core option the core asks for\n"
         "      --pot-volume       scale game audio by the Pico pot (instead of volume_daemon.py)\n"
         "      --no-audio  --no-rt\n", p);
 }
@@ -644,7 +667,8 @@ int main(int argc, char **argv) {
         {"joystick", 1, 0, 'j'}, {"integer", 0, 0, 1}, {"batch", 1, 0, 2},
         {"sync-delay", 1, 0, 3}, {"cpu", 1, 0, 4}, {"system-dir", 1, 0, 5},
         {"opt", 1, 0, 6}, {"no-audio", 0, 0, 7}, {"pot-volume", 0, 0, 8},
-        {"no-rt", 0, 0, 9}, {"help", 0, 0, 'h'}, {0, 0, 0, 0}
+        {"no-rt", 0, 0, 9}, {"opts-file", 1, 0, 10}, {"log-vars", 0, 0, 11},
+        {"help", 0, 0, 'h'}, {0, 0, 0, 0}
     };
     int c;
     while ((c = getopt_long(argc, argv, "i:c:r:W:H:b:d:y:x:j:h", opts, NULL)) != -1) {
@@ -676,6 +700,8 @@ int main(int argc, char **argv) {
             case 7: g_audio = 0; break;
             case 8: g_pot_volume = 1; break;
             case 9: g_rt = 0; break;
+            case 10: load_opts_file(optarg); break;
+            case 11: g_log_vars = 1; break;
             default: usage(argv[0]); return c == 'h' ? 0 : 1;
         }
     }

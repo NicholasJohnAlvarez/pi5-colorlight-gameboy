@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")"
 
 echo "Installing build dependencies..."
-sudo apt install -y build-essential libasound2-dev libretro-mgba evtest
+sudo apt install -y build-essential git libasound2-dev libretro-mgba evtest
 
 echo "Building colorlight_libretro..."
 gcc -O2 -o colorlight_libretro colorlight_libretro.c -ldl -lasound -lrt -lm -lpthread
@@ -27,5 +27,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now gameboy-power
 
 echo
+echo "Optional, for Pokémon trading: ./gambatte/build_gambatte.sh"
 echo "Done. Put ROMs in ~/roms/gbc and flip the power switch."
 echo "Logs: journalctl -u gameboy-power -f"

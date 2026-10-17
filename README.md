@@ -21,9 +21,9 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 - 192×192 output at the Game Boy's native ~59.7 fps on a 3×3 grid of 64×64 P3 panels
 - Real-time pacing: `SCHED_FIFO`, CPU pinning, `mlockall()` and absolute-deadline `clock_nanosleep()`
 - Rows sent in 32-row `sendmmsg()` batches, matching the panels' 1/32 scan, plus a short pause before the sync packet that fixes bottom-row flicker
-- Works with any libretro core that outputs XRGB8888, RGB565 or 0RGB1555. Tested with mGBA and Gambatte.
+- Works with any libretro core that outputs XRGB8888, RGB565 or 0RGB1555. We run Gambatte with its network link built in, and mGBA works too.
 - Battery saves (`.srm`) written every 5 seconds and on power-off, using an atomic write that survives the plug being pulled
-- Core options from the command line, e.g. Gambatte's network link for Pokémon trading between two machines
+- Core options from a `.opt` file or the command line, which is how the Pi joins the link cable for Pokémon trading between the two Game Boys
 - A matching **Raspberry Pi Pico** controller: an 11-button USB gamepad, a bistable power switch, an absolute volume knob and a power LED
 
 ## Repository layout
@@ -35,6 +35,7 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 | `driver/power_switch.py` | Watches the Pico's power switch: starts the game on ON and saves and stops it on OFF |
 | `driver/systemd/gameboy-power.service` | Starts the power switch daemon at boot |
 | `driver/install.sh` | Builds and installs everything on the Pi |
+| `driver/gambatte/` | Build script, connect-timeout patch and core options for the link-cable Gambatte core |
 | `controller/firmware/` | Pico firmware (C, Pico SDK + TinyUSB) |
 | `controller/usb_gamepad.uf2` | Prebuilt firmware: drag onto the Pico in BOOTSEL mode |
 | `controller/volume_daemon.py` | Turns the volume knob into the Pi's system volume (PipeWire) |
@@ -103,7 +104,7 @@ Now flip the power switch. Each power-on loads the next game in `~/roms/gbc`. Ho
 ```bash
 ./colorlight_libretro -i eth0 \
     -c /usr/lib/aarch64-linux-gnu/libretro/mgba_libretro.so \
-    -r ~/roms/gbc/game.gbc --dim 0.5
+    -r ~/roms/gbc/game.gbc -b 80
 ```
 
 Useful options:
@@ -114,31 +115,40 @@ Useful options:
 | `-W` / `-H` | 192 / 192 | Output size (match your cabinet) |
 | `--integer` | off | 1:1 pixels instead of aspect-fit (160×144 → 192×172) |
 | `-y` / `-x` | 0 | Nudge the image to line up with the bezel |
-| `-d`, `--dim` | 1.0 | Software brightness; the card may ignore `-b` if brightness is stored in its flash |
+| `-b` | 255 | Receiver card brightness; we run at 80 |
+| `-d`, `--dim` | 1.0 | Software brightness, if your card ignores `-b` |
 | `--batch` | 32 | Rows per `sendmmsg()` call |
 | `--sync-delay` | 500 µs | Raise it if the last rows flicker |
 | `--cpu` | 3 | CPU core to pin to (`-1` disables) |
-| `--opt KEY=VALUE` | | Core option, repeatable |
+| `--opt KEY=VALUE` | | Core option, repeatable (overrides the file) |
+| `--opts-file PATH` | | Load core options from a RetroArch-style `.opt` file |
+| `--log-vars` | off | Print every option the core asks for |
 | `--pot-volume` | off | Scale game audio by the knob directly instead of using `volume_daemon.py` |
 
 ### Pokémon trading between two Game Boys
 
-Gambatte has a TCP "network link" that emulates the link cable. Build Gambatte with `HAVE_NETWORK=1`, then pass its options. For example, on the machine acting as the client:
+The two giant Game Boys trade Pokémon over Wi-Fi through a real emulated link cable. We tested it by sending a Kadabra from Pokémon Red on the 9ft 7in and having it arrive as an Alakazam in Pokémon Yellow on this Pi.
 
-```bash
-./colorlight_libretro -i eth0 -c ./gambatte_libretro.so -r "Pokemon Yellow.gbc" \
-    --opt gambatte_gb_hwmode=GBC \
-    --opt gambatte_gb_bootloader=enabled \
-    --opt gambatte_gb_link_mode="Network Client" \
-    --opt gambatte_gb_link_network_port=56400
-```
+How it works:
 
-Option names and values vary between Gambatte builds. Check your core's options list.
+- **Gambatte's network link, not netplay.** RetroArch netplay syncs two copies of the *same* game, which is useless for trading. Gambatte's "netlink" tunnels the raw bytes the games send over the link port through a TCP socket. One side is the server, the other the client.
+- **It must be built in.** Prebuilt Gambatte cores have `HAVE_NETWORK=0`. `driver/gambatte/build_gambatte.sh` builds it with the link enabled (commit `d9d6cd0`), applies our patch and installs it to `driver/cores/`. `play.sh` uses it automatically when it's there.
+- **No settings change between trading days and normal days.** Stock Gambatte uses a blocking `connect()`, so a client with no server waits about 2 minutes before the game appears. `patch_connect_timeout.py` limits that to 1 second. When the Pi powers on, it links if the other Game Boy is up and otherwise just plays.
+- **Core options from a file.** This frontend has no menu, so `--opts-file driver/gambatte/gambatte.opt` answers the core's option requests: GBC mode, boot logo, link mode, port, and the server IP as twelve zero-padded digits (192.168.1.20 → `1 9 2 1 6 8 0 0 1 0 2 0`). `--log-vars` prints every option the core asks for.
+
+Setup checklist:
+
+1. On the Pi: `./gambatte/build_gambatte.sh`, then put the server's Wi-Fi IP in `gambatte/gambatte.opt`.
+2. Put `gbc_bios.bin` (2,304 bytes, your own dump) in the ROM folder for the boot logo.
+3. Use Wi-Fi for the link. The Pi's Ethernet port is wired to the receiver card and has no route to the network. Turn off Wi-Fi power saving with `sudo iw dev wlan0 set power_save off`, because the doze adds latency spikes that break the Cable Club handshake.
+4. On the server (our 9ft 7in runs RetroArch on Windows): use the same Gambatte commit built with the network link. Set link mode to **Network Server** and **all twelve IP digits to 0**, because in server mode they are the *bind* address. On Windows, also set `network_cmd_enable = "true"` in `retroarch.cfg`. Gambatte never calls `WSAStartup()`, and this makes RetroArch do it; otherwise you get "Error opening socket: No error". Allow TCP 56400 through the firewall.
+5. Start the server Game Boy first, then power on the Pi. Count down together before both players talk to the Cable Club attendant, because the handshake window is short.
 
 ## Notes and limitations
 
 - The Game Boy Color screen is 160×144. HUB75 panels come in 32×32 and 64×64 blocks, so we used a 192×192 grid and scale the image to fit. It's close, but not pixel-perfect.
-- Brightness: if the receiver card has brightness saved in flash, the brightness packet may be ignored. Use `--dim` instead.
+- Brightness: if the receiver card has brightness saved in flash, it may ignore `-b`. Use `--dim` instead.
+- If the link partner stops in the middle of a trade, the emulator can freeze, because Gambatte still uses a blocking read. Restart both Game Boys.
 - Bring your own legally owned ROMs or homebrew. No games or BIOS files are included.
 - The 9ft 7in World's Largest Game Boy Color uses a Windows mini PC and a Colorlight X2S sending card instead. It uses the same Pico controller.
 

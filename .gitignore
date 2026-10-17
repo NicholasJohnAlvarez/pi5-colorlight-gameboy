@@ -17,6 +17,9 @@ controller/firmware/build/
 *.state*
 *bios*
 
+# Built cores
+driver/cores/
+
 # Runtime state
 .game_index
 .game_lock
