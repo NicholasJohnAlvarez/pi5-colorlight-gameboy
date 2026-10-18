@@ -173,8 +173,8 @@ Setup checklist:
 
 ## Credits
 
-- Built by **Nick Alvarez** (electronics, firmware, software) and **Paige Powell** (CAD, fabrication, art), with sound design by **Fabrizio D'Amelio**, button mechanisms by UC Davis volunteers, and the support of **Tim Keller** and Inventopia, Davis CA.
-- The Colorlight packet format comes from the community's reverse-engineering of the 5A-75B/E80 receiver cards. Thanks to everyone who documented it.
+- Built by **Nick Alvarez** (electronics, firmware, software) and **Paige Powell** (CAD, fabrication, art), with sound systems by **Fabrizio D'Amelio** and UC Davis volunteers **Cody Dowdell**, **Koan Sato-Perry**, **Zoe Wilf** (Start/Select buttons), **Jradon Smith** (power switch mechanism) and **Gabriel Bruce** (the 5ft 9in's stand). Thanks to **Tim Keller** and Inventopia, Davis CA, for the space, transport and D-pad design help.
+- The Colorlight packet format comes from the community's reverse-engineering of the 5A-75B/E80 receiver cards, including the [Falcon Player (FPP)](https://github.com/FalconChristmas/fpp) project's Colorlight support. Thanks to everyone who documented it.
 - [libretro](https://www.libretro.com/), [mGBA](https://mgba.io/), [Gambatte](https://github.com/libretro/gambatte-libretro), [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk) and [TinyUSB](https://github.com/hathach/tinyusb).
 - Follow the builds: Instagram [@NickBuildStuff](https://instagram.com/NickBuildStuff) and [@ppow_creative](https://instagram.com/ppow_creative).
 
