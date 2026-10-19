@@ -67,7 +67,7 @@ This project removes the sending card. The Pi 5 builds the receiver card's Ether
 | 10 momentary buttons + 1 latching switch | We use long-arm limit switches behind custom giant buttons |
 | 47 kΩ potentiometer + 47 kΩ resistor | Volume knob |
 | Red through-hole LED, 150 Ω and 1 kΩ resistors, 2N2222 NPN transistor | Power indicator |
-| Audio output and speaker | Anything PipeWire can see |
+| Audio output and speaker | Anything PipeWire can see. Ours: Dayton Audio KABM-30M 30W amp, two-way ported speaker (ND25FW-4 tweeter, DSA135-8 woofer, 6-component passive crossover) |
 
 ### Receiver card setup (one time)
 
